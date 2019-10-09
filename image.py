@@ -77,14 +77,14 @@ def get_color_value(image, base_color):
 	for pixel in image_rgb_data:
 		dist_arr.append(get_cie2000_difference(pixel, base_color))
 
-	min_dist = min(dist_arr)-(10**-9)
-	max_dist = max(dist_arr)+(10**-9)
+	min_dist = min(dist_arr)
+	max_dist = max(dist_arr)
 	threshold = (max_dist-min_dist)/15.0
 
 	for color_dist in dist_arr:
 		if color_dist-min_dist < threshold:
 			pixel_count += 1
-			total += 100.0/color_dist
+			total += 100.0/(color_dist+1.0)
 
 	return total/pixel_count
 
@@ -104,7 +104,7 @@ def get_cie2000_difference(color1, color2):
 
 
 if __name__ == '__main__':
-  	test_image = Image.open('test2.jpg')
+  	test_image = Image.open('test3.jpg')
   	print("image loaded")
 
   	test_image.thumbnail((150, 150))
