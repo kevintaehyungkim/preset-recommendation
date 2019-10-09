@@ -6,23 +6,29 @@ Used to extract and manipulate image data, and generate image features for model
 TO-DO items:
  - enable multiprocessing/pool to batch extraction/generation
 '''
-
+from colormath.color_objects import sRGBColor, LabColor
+from colormath.color_conversions import convert_color
+from colormath.color_diff import delta_e_cie2000
+from multiprocessing import Pool
+import numpy as np
+from skimage import io
+from skimage.color import rgb2lab, deltaE_cie76
 from PIL import Image
 
 
 # Colors
-BLACK = [0, 0, 0]
-WHITE = [255, 255, 255]
-
-RED = [255, 0, 0]
-ORANGE = [255, 165, 0]
-YELLOW = [255, 255, 0]
-GREEN = [0, 128, 0]
-AQUA = [0, 255, 255]
-BLUE = [0, 0, 255]
-PURPLE = [128, 0, 128]
-MAGENTA = [255, 0, 255]
-
+RGB_COLOR_MAP = {
+	"BLACK": [0, 0, 0],
+	"WHITE": [255, 255, 255],
+	"RED": [255, 0, 0],
+	"ORANGE": [255, 165, 0],
+	"YELLOW":[255, 255, 0],
+	"GREEN": [0, 128, 0],
+	"AQUA": [0, 255, 255],
+	"BLUE": [0, 0, 255],
+	"PURPLE": [128, 0, 128],
+	"MAGENTA": [255, 0, 255]
+}
 
 
 '''
@@ -54,43 +60,66 @@ Parameters:
 def extract_histogram_data(image):
 	return image.histogram()
 
-def get_red_value(histogram_arr):
-	return sum(histogram_arr[0:256])
 
-def get_blue_value(histogram_arr):
-	return sum(histogram_arr[256:512])
+'''
+Returns the intensity score of how closely a pixel is related to the provided color
+Only accounts for pixels that are within a certain color distance threshold
+'''
+def get_color_value(image, base_color):
+	pixel_count, total = 0, 0
+	dist_arr = []
 
-def get_green_value(histogram_arr):
-	return sum(histogram_arr[512:768])
+	image_size = image.size
+	num_pixels = image_size[0]*image_size[1]
+
+	image_rgb_data = image.getdata()
+
+	for pixel in image_rgb_data:
+		dist_arr.append(get_cie2000_difference(pixel, base_color))
+
+	min_dist = min(dist_arr)-(10**-9)
+	max_dist = max(dist_arr)+(10**-9)
+	threshold = (max_dist-min_dist)/15.0
+
+	for color_dist in dist_arr:
+		if color_dist-min_dist < threshold:
+			pixel_count += 1
+			total += 100.0/color_dist
+
+	return total/pixel_count
 
 
-# def get_black_value(rgb_arr):
-# 	for 
+def get_cie2000_difference(color1, color2):
+	# Normalize RGB values
+	color1_rgb = sRGBColor(color1[0], color1[1], color1[2], is_upscaled=True)
+	color2_rgb = sRGBColor(color2[0], color2[1], color2[2], is_upscaled=True)
 
+	# Convert from RGB to Lab Color Space
+	color1_lab = convert_color(color1_rgb, LabColor)
+	color2_lab = convert_color(color2_rgb, LabColor)
 
-
+	#Find the difference
+	diff = delta_e_cie2000(color1_lab, color2_lab)
+	return diff
 
 
 if __name__ == '__main__':
-  	test = Image.open('test.jpg')
+  	test_image = Image.open('test2.jpg')
   	print("image loaded")
+
+  	test_image.thumbnail((150, 150))
+  	print("image pixel data compressed")
+
+  	for color in RGB_COLOR_MAP.keys():
+  		print(color + " :" + str(get_color_value(test_image, RGB_COLOR_MAP[color])))
+
+  	# print(get_cie2000_difference([255,0,0], [230,0,0]))
+  	# print(reduce_rgb_data(test_image.getdata(), test_image.size[0], test_image.size[1]))
+
 	# print(test.format)
 	# print(test.mode)
 	# print(test.size)
-	# test.show()
-	# a = list(test.getdata())
-	# print(extract_pixel_data(test)[0])
-	# print(extract_pixel_data(test, 0)[0])
-	# print(extract_pixel_data(test, 1)[0])
-	# print(extract_pixel_data(test, 2)[0])
-
-
-	# print(list(test2_data))
-
-	test_histogram = extract_histogram_data(test)
-	print(get_red_value(test_histogram))
-	print(get_blue_value(test_histogram))
-	print(get_green_value(test_histogram))
+	test_image.show()
 
 
 
